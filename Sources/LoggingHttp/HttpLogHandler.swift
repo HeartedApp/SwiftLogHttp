@@ -4,13 +4,13 @@ import FoundationNetworking
 #endif
 import Logging
 
-/// `SlackLogHandler` is an implementation of `LogHandler` for sending
-/// `Logger` output directly to Slack.
-public struct SlackLogHandler: LogHandler {
-    /// The global log level threshold that determines when to send log output to Slack.
+/// `HttpLogHandler` is an implementation of `LogHandler` for sending
+/// `Logger` output directly to web server.
+public struct HttpLogHandler: LogHandler {
+    /// The global log level threshold that determines when to send log output via http.
     /// Defaults to `.info`.
     ///
-    /// The `logLevel` of an individual `SlackLogHandler` is ignored when this global
+    /// The `logLevel` of an individual `HttpLogHandler` is ignored when this global
     /// log level is set to a higher level.
     public static var globalLogLevelThreshold: Logger.Level = .info
     
@@ -18,7 +18,7 @@ public struct SlackLogHandler: LogHandler {
     internal static var messageSendHandler: ((Result<Void, Error>) -> Void)?
     
     /// Internal for testing only.
-    internal var slackSession: SlackSession = URLSession.shared
+    internal var httpSession: HttpSession = URLSession.shared
     
     /// The log label for the log handler.
     public var label: String
@@ -30,7 +30,7 @@ public struct SlackLogHandler: LogHandler {
     
     public var metadata = Logger.Metadata()
     
-    /// Creates a `SlackLogHandler` for sending `Logger` output directly to Slack.
+    /// Creates a `HttpLogHandler` for sending `Logger` output via http.
     /// - Parameters:
     ///   - label: The log label for the log handler.
     ///   - url: The HTTP(S) URL.
@@ -54,11 +54,11 @@ public struct SlackLogHandler: LogHandler {
                     message: Logger.Message,
                     metadata: Logger.Metadata?,
                     file: String, function: String, line: UInt) {
-        guard level >= SlackLogHandler.globalLogLevelThreshold else { return }
+        guard level >= HttpLogHandler.globalLogLevelThreshold else { return }
         
         let metadata = mergedMetadata(metadata).compactMapValues { value in unpackMetadata(value) }
         
-        send(LogEvent(level: level.rawValue, message: message.description, metadata: metadata))
+        send(LogEvent(label: label, level: level.rawValue, message: message.description, metadata: metadata))
     }
     
     private func mergedMetadata(_ metadata: Logger.Metadata?) -> Logger.Metadata {
@@ -71,22 +71,19 @@ public struct SlackLogHandler: LogHandler {
     
     private func unpackMetadata(_ value: Logger.MetadataValue) -> String? {
         switch value {
-        case .string(let value):
-            return value
-        case .stringConvertible(let value):
-            //return value
-            return nil
-        case .array(let value):
-            //return value.map { unpackMetadata($0) }
-            return nil
-        case .dictionary(let value):
-            //return value.mapValues { unpackMetadata($0) }
-            return nil
+            case .dictionary(let dict):
+                return dict.mapValues { $0.description }.description
+            case .array(let list):
+                return list.map { $0.description }.description
+            case .string(let str):
+                return str
+            case .stringConvertible(let repr):
+                return repr.description
         }
     }
     
     private func send(_ logEvent: LogEvent) {
-        slackSession.send(logEvent, to: url) { result in
+        httpSession.send(logEvent, to: url) { result in
             switch result {
             case .success:
                 break
@@ -94,7 +91,7 @@ public struct SlackLogHandler: LogHandler {
                 print("Failed to send payload with error: \(error)")
             }
             
-            SlackLogHandler.messageSendHandler?(result)
+            HttpLogHandler.messageSendHandler?(result)
         }
     }
 }

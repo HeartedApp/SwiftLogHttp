@@ -3,16 +3,16 @@ import Foundation
 import FoundationNetworking
 #endif
 
-protocol SlackSession {
+protocol HttpSession {
     func send(_ message: LogEvent, to url: URL, completion: ((Result<Void, Error>) -> Void)?)
 }
 
-enum SlackSessionError: Error {
+enum HttpSessionError: Error {
     case invalidResponseType
     case errorStatusCode(Int, String?)
 }
 
-extension URLSession: SlackSession {
+extension URLSession: HttpSession {
     func send(_ logEvent: LogEvent,
               to url: URL,
               completion: ((Result<Void, Error>) -> Void)?) {
@@ -32,13 +32,13 @@ extension URLSession: SlackSession {
         
         let task = dataTask(with: request) { data, response, error in
             guard let response = response as? HTTPURLResponse else {
-                completion?(.failure(SlackSessionError.invalidResponseType))
+                completion?(.failure(HttpSessionError.invalidResponseType))
                 return
             }
             
             guard (200..<300).contains(response.statusCode) else {
                 let errorMessage = data.flatMap { String(data: $0, encoding: .utf8) }
-                completion?(.failure(SlackSessionError.errorStatusCode(response.statusCode, errorMessage)))
+                completion?(.failure(HttpSessionError.errorStatusCode(response.statusCode, errorMessage)))
                 return
             }
             
