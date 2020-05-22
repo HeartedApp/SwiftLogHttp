@@ -4,7 +4,7 @@ import FoundationNetworking
 #endif
 
 protocol HttpSession {
-    func send(_ message: LogEvent, to url: URL, completion: ((Result<Void, Error>) -> Void)?)
+    func send(_ message: Data, to url: URL, completion: ((Result<Void, Error>) -> Void)?)
 }
 
 enum HttpSessionError: Error {
@@ -13,20 +13,12 @@ enum HttpSessionError: Error {
 }
 
 extension URLSession: HttpSession {
-    func send(_ logEvent: LogEvent,
+    func send(_ message: Data,
               to url: URL,
               completion: ((Result<Void, Error>) -> Void)?) {
-        let data: Data
-        do {
-            data = try JSONEncoder().encode(logEvent)
-        } catch {
-            completion?(.failure(error))
-            return
-        }
-        
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.httpBody = data
+        request.httpBody = message
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("application/json", forHTTPHeaderField: "Accept")
         

@@ -30,8 +30,6 @@ public struct HttpLogHandler: LogHandler {
     
     public var metadata = Logger.Metadata()
     
-    internal let encoder = JSONEncoder()
-    
     /// Creates a `HttpLogHandler` for sending `Logger` output via http.
     /// - Parameters:
     ///   - label: The log label for the log handler.
@@ -51,18 +49,99 @@ public struct HttpLogHandler: LogHandler {
         }
     }
     
-    // swiftlint:disable:next function_parameter_count
-    public func log(level: Logger.Level,
-                    message: Logger.Message,
-                    metadata: Logger.Metadata?,
-                    file: String, function: String, line: UInt) {
-        guard level >= HttpLogHandler.globalLogLevelThreshold else { return }
-        
-        send(LogEvent(label: label, level: level.rawValue, location: Location(file: file, function: function, line: line), message: message.description, metadata: metadata))
+    public func log(level: Logger.Level, message: Logger.Message, metadata: Logger.Metadata?, file: String, function: String, line: UInt) {
+        // JSONSerialization and its internal JSONWriter calls seem to leak significant memory, especially when
+        // called recursively or in loops. Wrapping the calls in an autoreleasepool fixes the problems entirely on Darwin.
+        // see: https://bugs.swift.org/browse/SR-5501
+        autoreleasepool {
+            let entryMetadata: Logger.Metadata
+            if let parameterMetadata = metadata {
+                entryMetadata = self.metadata.merging(parameterMetadata) { $1 }
+            } else {
+                entryMetadata = self.metadata
+            }
+            
+            var json = Self.unpackMetadata(.dictionary(entryMetadata)) as! [String: Any]
+            assert(json["message"] == nil, "'message' is a metadata field reserved by Stackdriver, your custom 'message' metadata value will be overriden in production")
+            assert(json["severity"] == nil, "'severity' is a metadata field reserved by Stackdriver, your custom 'severity' metadata value will be overriden in production")
+            assert(json["sourceLocation"] == nil, "'sourceLocation' is a metadata field reserved by Stackdriver, your custom 'sourceLocation' metadata value will be overriden in production")
+            assert(json["timestamp"] == nil, "'timestamp' is a metadata field reserved by Stackdriver, your custom 'timestamp' metadata value will be overriden in production")
+            
+            json["message"] = message.description
+            json["level"] = level.rawValue
+            json["sourceLocation"] = ["file": Self.conciseSourcePath(file), "line": line, "function": function]
+            json["timestamp"] = Self.iso8601DateFormatter.string(from: Date())
+            
+            do {
+                try self.send(JSONSerialization.data(withJSONObject: json, options: []))
+            } catch {
+                print("Failed to serialize your log entry metadata to JSON with error: '\(error.localizedDescription)'")
+            }
+        }
     }
     
-    private func send(_ logEvent: LogEvent) {
-        httpSession.send(logEvent, to: url) { result in
+    /// ISO 8601 `DateFormatter` which is the accepted format for timestamps in Stackdriver
+    private static let iso8601DateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .iso8601)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSXXXXX"
+        return formatter
+    }()
+    
+    private static func unpackMetadata(_ value: Logger.MetadataValue) -> Any {
+        /// Based on the core-foundation implementation of `JSONSerialization.isValidObject`, but optimized to reduce the amount of comparisons done per validation.
+        /// https://github.com/apple/swift-corelibs-foundation/blob/9e505a94e1749d329563dac6f65a32f38126f9c5/Foundation/JSONSerialization.swift#L52
+        func isValidJSONValue(_ value: CustomStringConvertible) -> Bool {
+            if value is Int || value is Bool || value is NSNull ||
+                (value as? Double)?.isFinite ?? false ||
+                (value as? Float)?.isFinite ?? false ||
+                (value as? Decimal)?.isFinite ?? false ||
+                value is UInt ||
+                value is Int8 || value is Int16 || value is Int32 || value is Int64 ||
+                value is UInt8 || value is UInt16 || value is UInt32 || value is UInt64 ||
+                value is String {
+                return true
+            }
+            
+            // Using the official `isValidJSONObject` call for NSNumber since `JSONSerialization.isValidJSONObject` uses internal/private functions to validate them...
+            if let number = value as? NSNumber {
+                return JSONSerialization.isValidJSONObject([number])
+            }
+            
+            return false
+        }
+        
+        switch value {
+        case .string(let value):
+            return value
+        case .stringConvertible(let value):
+            if isValidJSONValue(value) {
+                return value
+            } else if let date = value as? Date {
+                return iso8601DateFormatter.string(from: date)
+            } else if let data = value as? Data {
+                return data.base64EncodedString()
+            } else {
+                return value.description
+            }
+        case .array(let value):
+            return value.map { Self.unpackMetadata($0) }
+        case .dictionary(let value):
+            return value.mapValues { Self.unpackMetadata($0) }
+        }
+    }
+    
+    private static func conciseSourcePath(_ path: String) -> String {
+        return path.split(separator: "/")
+            .split(separator: "Sources")
+            .last?
+            .joined(separator: "/") ?? path
+    }
+    
+    private func send(_ message: Data) {
+        httpSession.send(message, to: url) { result in
             switch result {
             case .success:
                 break
@@ -72,5 +151,15 @@ public struct HttpLogHandler: LogHandler {
             
             HttpLogHandler.messageSendHandler?(result)
         }
+    }
+    
+    private func withAutoReleasePool<T>(_ execute: () throws -> T) rethrows -> T {
+        #if os(Linux)
+        return try execute()
+        #else
+        return try autoreleasepool {
+            try execute()
+        }
+        #endif
     }
 }

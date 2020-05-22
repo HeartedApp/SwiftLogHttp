@@ -51,9 +51,10 @@ final class HttpLogHandlerTests: XCTestCase {
         }
         
         let metadata: Logger.Metadata = [
-            "identifier": "\(UUID())",
+            "identifier": .stringConvertible(UUID()),
             "name": "test-name",
-            "embedded": [ "dictionary" : "value" ]
+            "number": .stringConvertible(42),
+            "embedded": [ "dictionary" : "value", "sub" : ["date" : .stringConvertible(Date())]]
         ]
         
         logger.error("This is an error with metadata", metadata: metadata)
