@@ -30,6 +30,8 @@ public struct HttpLogHandler: LogHandler {
     
     public var metadata = Logger.Metadata()
     
+    internal let encoder = JSONEncoder()
+    
     /// Creates a `HttpLogHandler` for sending `Logger` output via http.
     /// - Parameters:
     ///   - label: The log label for the log handler.
@@ -56,30 +58,7 @@ public struct HttpLogHandler: LogHandler {
                     file: String, function: String, line: UInt) {
         guard level >= HttpLogHandler.globalLogLevelThreshold else { return }
         
-        let metadata = mergedMetadata(metadata).compactMapValues { value in unpackMetadata(value) }
-        
-        send(LogEvent(label: label, level: level.rawValue, message: message.description, metadata: metadata))
-    }
-    
-    private func mergedMetadata(_ metadata: Logger.Metadata?) -> Logger.Metadata {
-        if let metadata = metadata {
-            return self.metadata.merging(metadata, uniquingKeysWith: { _, new in new })
-        } else {
-            return self.metadata
-        }
-    }
-    
-    private func unpackMetadata(_ value: Logger.MetadataValue) -> String? {
-        switch value {
-            case .dictionary(let dict):
-                return dict.mapValues { $0.description }.description
-            case .array(let list):
-                return list.map { $0.description }.description
-            case .string(let str):
-                return str
-            case .stringConvertible(let repr):
-                return repr.description
-        }
+        send(LogEvent(label: label, level: level.rawValue, location: Location(file: file, function: function, line: line), message: message.description, metadata: metadata))
     }
     
     private func send(_ logEvent: LogEvent) {
