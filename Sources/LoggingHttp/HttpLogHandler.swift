@@ -67,6 +67,7 @@ public struct HttpLogHandler: LogHandler {
             assert(json["sourceLocation"] == nil, "'sourceLocation' is a metadata field reserved by Stackdriver, your custom 'sourceLocation' metadata value will be overriden in production")
             assert(json["timestamp"] == nil, "'timestamp' is a metadata field reserved by Stackdriver, your custom 'timestamp' metadata value will be overriden in production")
             
+            json["label"] = label
             json["message"] = message.description
             json["level"] = level.rawValue
             json["sourceLocation"] = ["file": Self.conciseSourcePath(file), "line": line, "function": function]
