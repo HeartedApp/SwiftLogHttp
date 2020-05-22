@@ -4,7 +4,7 @@ import FoundationNetworking
 #endif
 
 protocol SlackSession {
-    func send(_ message: SlackMessage, to webhookURL: URL, completion: ((Result<Void, Error>) -> Void)?)
+    func send(_ message: LogEvent, to url: URL, completion: ((Result<Void, Error>) -> Void)?)
 }
 
 enum SlackSessionError: Error {
@@ -13,18 +13,18 @@ enum SlackSessionError: Error {
 }
 
 extension URLSession: SlackSession {
-    func send(_ message: SlackMessage,
-              to webhookURL: URL,
+    func send(_ logEvent: LogEvent,
+              to url: URL,
               completion: ((Result<Void, Error>) -> Void)?) {
         let data: Data
         do {
-            data = try JSONEncoder().encode(message)
+            data = try JSONEncoder().encode(logEvent)
         } catch {
             completion?(.failure(error))
             return
         }
         
-        var request = URLRequest(url: webhookURL)
+        var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.httpBody = data
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")

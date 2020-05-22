@@ -1,4 +1,4 @@
-# LoggingSlack
+# LoggingHttp
 
 ![swift](https://img.shields.io/badge/Swift-5.1-orange.svg)
 ![platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20iOS%20%7C%20tvOS%20%7C%20watchOS-lightgrey.svg)
@@ -9,24 +9,24 @@
 [![jazzy](https://raw.githubusercontent.com/wlisac/swift-log-slack/gh-pages/badge.svg?sanitize=true)](https://wlisac.github.io/swift-log-slack/Structs/SlackLogHandler.html)
 [![codecov](https://img.shields.io/codecov/c/github/wlisac/swift-log-slack)](https://codecov.io/gh/wlisac/swift-log-slack)
 
-Welcome to **LoggingSlack** – a logging backend for [SwiftLog](https://github.com/apple/swift-log) that sends critical log messages to Slack.
+Welcome to **LoggingHttp** – a logging backend for [SwiftLog](https://github.com/apple/swift-log) that sends critical log messages to Slack.
 
 ## Usage
 
 ### Setup Incoming Webhooks
 
-LoggingSlack uses [Incoming Webhooks](https://slack.com/apps/A0F7XDUAZ-incoming-webhooks) to send log messages to a Slack channel.
+LoggingHttp uses [Incoming Webhooks](https://slack.com/apps/A0F7XDUAZ-incoming-webhooks) to send log messages to a Slack channel.
 
-Once you've setup Incoming Webhooks, you should have a webhook URL that you can use to configure LoggingSlack.
+Once you've setup Incoming Webhooks, you should have a webhook URL that you can use to configure LoggingHttp.
 
 ### Bootstrap SwiftLog
-LoggingSlack is intended to be used as a secondary logging backend to send critical log messages directly to Slack.
+LoggingHttp is intended to be used as a secondary logging backend to send critical log messages directly to Slack.
 
-You can use SwiftLog's `MultiplexLogHandler` to setup LoggingSlack with another logging backend.
+You can use SwiftLog's `MultiplexLogHandler` to setup LoggingHttp with another logging backend.
 
 ```swift
 import Logging
-import LoggingSlack
+import LoggingHttp
 
 let webhookURL = URL(string: "https://hooks.slack.com/services/T1MGQL1L8/RM2LE5QLF/YH036NhldqitdR1lVd5NLS6z")!
 
@@ -68,7 +68,7 @@ Only `critical` [log level](https://github.com/apple/swift-log#log-levels) messa
 
 You can adjust the log level threshold by changing the `globalLogLevelThreshold` static property on `SlackLogHandler`.
 
-For example, this will configure LoggingSlack to send all `error` log level and above messages to Slack.
+For example, this will configure LoggingHttp to send all `error` log level and above messages to Slack.
 
 ```swift
 SlackLogHandler.globalLogLevelThreshold = .error
@@ -80,18 +80,18 @@ Visit the [online API reference](https://wlisac.github.io/swift-log-slack/Struct
 
 ## Installation
 
-LoggingSlack requires Xcode 11 or a Swift 5.1 toolchain with the Swift Package Manager. 
+LoggingHttp requires Xcode 11 or a Swift 5.1 toolchain with the Swift Package Manager. 
 
 ### Swift Package Manager
 
-Add the LoggingSlack package as a dependency to your `Package.swift` file.
+Add the LoggingHttp package as a dependency to your `Package.swift` file.
 
 ```swift
 .package(url: "https://github.com/wlisac/swift-log-slack.git", from: "0.1.0")
 ```
 
-Add LoggingSlack to your target's dependencies.
+Add LoggingHttp to your target's dependencies.
 
 ```swift
-.target(name: "Example", dependencies: ["LoggingSlack"])
+.target(name: "Example", dependencies: ["LoggingHttp"])
 ```

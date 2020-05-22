@@ -1,4 +1,4 @@
-module: LoggingSlack
+module: LoggingHttp
 github_url: https://github.com/wlisac/swift-log-slack
 
 author: Will Lisac
