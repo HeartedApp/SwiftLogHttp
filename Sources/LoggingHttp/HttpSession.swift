@@ -5,6 +5,7 @@ import FoundationNetworking
 
 protocol HttpSession {
     func send(_ message: Data, to url: URL, completion: ((Result<Void, Error>) -> Void)?)
+    func send(_ message: Data, to url: URL, headers: [String: String], completion: ((Result<Void, Error>) -> Void)?)
 }
 
 enum HttpSessionError: Error {
@@ -13,10 +14,18 @@ enum HttpSessionError: Error {
 }
 
 extension URLSession: HttpSession {
+    func send(_ message: Data, to url: URL, completion: ((Result<Void, Error>) -> Void)?) {
+        send(message, to: url, headers: [String:String].init(), completion: completion)
+    }
+    
     func send(_ message: Data,
               to url: URL,
+              headers: [String: String],
               completion: ((Result<Void, Error>) -> Void)?) {
         var request = URLRequest(url: url)
+        for (key, value) in headers {
+            request.addValue(value, forHTTPHeaderField: key)
+        }
         request.httpMethod = "POST"
         request.httpBody = message
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")

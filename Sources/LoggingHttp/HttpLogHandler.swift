@@ -26,6 +26,9 @@ public struct HttpLogHandler: LogHandler {
     /// The HTTP(S) URL.
     public var url: URL
 
+    // Headers to pass along with the payload
+    public var headers: [String: String]
+
     public var logLevel: Logger.Level = .info
     
     public var metadata = Logger.Metadata()
@@ -35,9 +38,11 @@ public struct HttpLogHandler: LogHandler {
     ///   - label: The log label for the log handler.
     ///   - url: The HTTP(S) URL.
     public init(label: String,
-                url: URL) {
+                url: URL,
+                headers: [String:String]) {
         self.label = label
         self.url = url
+        self.headers = headers
     }
     
     public subscript(metadataKey metadataKey: String) -> Logger.Metadata.Value? {
@@ -142,7 +147,7 @@ public struct HttpLogHandler: LogHandler {
     }
     
     private func send(_ message: Data) {
-        httpSession.send(message, to: url) { result in
+        httpSession.send(message, to: url, headers: headers) { result in
             switch result {
             case .success:
                 break

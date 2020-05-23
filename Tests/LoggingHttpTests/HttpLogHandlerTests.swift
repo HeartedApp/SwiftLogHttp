@@ -11,7 +11,8 @@ let isLoggingConfigured: Bool = {
             fatalError("URL must be set to a valid URL.")
         }
         var httpLogHandler = HttpLogHandler(label: label,
-                                              url: url)
+                                              url: url,
+                                              headers: [String:String].init())
         
         return MultiplexLogHandler([
             httpLogHandler,
